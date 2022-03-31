@@ -5,12 +5,34 @@ void Display::Print(std::string text)
     std::cout << text << std::endl;
 }
 
+void Display::Print(std::string text, bool noEndL)
+{
+    if(noEndL)
+        std::cout << text;
+    else
+        Display::Print(text);
+}
+
 std::string Display::boardOutput = std::string("");
 //I guess we have to initilize it??  Strange syntax
 
 void Display::Clear()
 {
     Print("\n\n\n\n\n\n");
+}
+
+void Display::PrintHit(Game::HitType type)
+{
+    std::string output = std::string("");
+
+    if(type == Game::HitType::MISS)
+        output = std::string("\n----------\nMiss.\n");
+    if(type == Game::HitType::NEARMISS)
+        output = std::string("\n----------\nNear Miss.\n");
+    if(type == Game::HitType::PLAYER || type == Game::HitType::ENEMY)
+        output = std::string("\n----------\nHit!\n");
+
+    Display::Print(output);
 }
 
 void Display::DisplayBoard(Game* game)
@@ -35,6 +57,12 @@ void Display::DisplayBoard(Game* game)
                 break;
                 case Game::MISS: break;
                 case Game::NEARMISS: break;
+                case Game::EMTPYGUESSED:
+                    boardOutput += std::string("   ");
+                break;
+                case Game::HITMARKER:
+                    boardOutput += std::string(" # ");
+                break;
                 
             }
         }
