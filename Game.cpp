@@ -71,6 +71,8 @@ void Game::Restart()
     {
         if(!playerTurn)
             ClearHitMarkers();
+        
+        //debug testing bit
         if(DEBUGXRAYHACKS)
             playerTurn = true;
 
@@ -89,6 +91,24 @@ void Game::Restart()
             Display::PrintHit(result); //show the player what they hit
         else
             enemy->SetHitResult(result);  //tell the AI what it hit
+
+        //count how many ships are left
+        player->ShipsLeft = CountShips(player->GetPlayerType());
+        enemy->ShipsLeft = CountShips(enemy->GetPlayerType());
+
+        //did we win or lose?
+        if(enemy->ShipsLeft <= 0)
+        {
+            Display::Clear();
+            Display::Print("~ YOU WIN ~");
+            break;
+        }
+        if(player->ShipsLeft <= 0)
+        {
+            Display::Clear();
+            Display::Print("~ YOU LOSE ~");
+            break;
+        }
 
         playerTurn = !playerTurn;
     }
@@ -110,6 +130,23 @@ void Game::PlaceShips(Game::HitType playerType)
             SetGrid(coord, playerType);
         }
     }
+}
+
+int Game::CountShips(Game::HitType playerType)
+{
+    int count = 0;
+    for(int x = 0; x < GridSize; x++)
+    {
+        for(int y = 0; y < GridSize; y++)
+        {
+            coord.X = x;
+            coord.Y = y;
+
+            if(ReadGrid(coord, HitType::EMPTY) == playerType)
+                count++;
+        }
+    }
+    return count;
 }
 
 bool Game::InBounds(Coord coord)

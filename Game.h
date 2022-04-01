@@ -23,6 +23,7 @@ private:
     Player* enemy;
     void ClearHitMarkers();
     void SetGrid(Coord coord, Game::HitType typeToSet);
+    int CountShips(Game::HitType playerType);
 public:
     static const bool DEBUGXRAYHACKS = false;
     static const int GridSize = 8;
