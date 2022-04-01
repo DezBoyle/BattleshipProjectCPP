@@ -41,8 +41,8 @@ Game::~Game()
 
 void Game::Restart()
 {
-    player = new Player(HitType::PLAYER);
-    enemy = new Player(HitType::ENEMY);
+    player = new Player(HitType::PLAYER, this);
+    enemy = new Player(HitType::ENEMY, this);
 
     std::cout << "RE/STARTING GAME" << std::endl;
     playerTurn = true;
@@ -69,19 +69,26 @@ void Game::Restart()
     //Game loop : go between player and enemy here
     while(true)
     {
-        ClearHitMarkers();
+        if(!playerTurn)
+            ClearHitMarkers();
         if(DEBUGXRAYHACKS)
             playerTurn = true;
-        playerTurn = true;
 
+        //get input from the player / AI
         Coord coord = playerTurn ? player->InputCoordinates() : enemy->InputCoordinates();
         Game::HitType result = ReadGrid(coord, playerTurn ? player->GetPlayerType() : enemy->GetPlayerType());
-        if(result == Game::HitType::MISS || result == Game::HitType::EMTPYGUESSED)
+
+        //we guessed but found an empty space
+        if(result == Game::HitType::MISS || result == Game::HitType::EMTPYGUESSED || result == Game::HitType::NEARMISS)
             SetGrid(coord, Game::HitType::EMTPYGUESSED); //clear the slot so it makes it easier to see which ones you already guessed
-        else
+        else //HIT SOMETHING
             SetGrid(coord, Game::HitType::HITMARKER); //draw a # symbol where a ship was just hit
         Display::DisplayBoard(this);
-        Display::PrintHit(result);
+        
+        if(playerTurn)
+            Display::PrintHit(result); //show the player what they hit
+        else
+            enemy->SetHitResult(result);  //tell the AI what it hit
 
         playerTurn = !playerTurn;
     }
@@ -94,8 +101,8 @@ void Game::PlaceShips(Game::HitType playerType)
     int shipsToPlace = ShipsPerPlayer;
     while(shipsToPlace > 0)
     {
-        coord.X = Utility::RandomRange(0, ShipsPerPlayer);
-        coord.Y = Utility::RandomRange(0, ShipsPerPlayer);
+        coord.X = Utility::RandomRange(0, GridSize);
+        coord.Y = Utility::RandomRange(0, GridSize);
     
         if(ReadGrid(coord, Game::HitType::EMPTY))
         {
@@ -103,6 +110,16 @@ void Game::PlaceShips(Game::HitType playerType)
             SetGrid(coord, playerType);
         }
     }
+}
+
+bool Game::InBounds(Coord coord)
+{
+    return (coord.X < GridSize && coord.X >= 0 && coord.Y < GridSize && coord.Y >= 0);
+}
+
+bool Game::ValidGuess(Coord coord)
+{
+    return InBounds(coord) && (ReadGrid(coord, Game::HitType::EMPTY) != Game::HitType::EMTPYGUESSED);
 }
 
 void Game::ClearHitMarkers()

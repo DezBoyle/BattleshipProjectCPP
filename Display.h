@@ -13,4 +13,5 @@ class Display
         static void DisplayBoard(Game* game);
         static void Clear();
         static void PrintHit(Game::HitType type);
+        static void PrintCoord(Coord coord);
 };

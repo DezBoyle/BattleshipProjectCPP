@@ -31,6 +31,8 @@ public:
     ~Game();
     void Restart();
     enum HitType ReadGrid(Coord coord, Game::HitType playerType);
+    static bool InBounds(Coord coord);
+    bool ValidGuess(Coord coord);
 private:
     void PlaceShips(Game::HitType playerType);
 };

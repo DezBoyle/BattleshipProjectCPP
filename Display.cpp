@@ -35,6 +35,15 @@ void Display::PrintHit(Game::HitType type)
     Display::Print(output);
 }
 
+void Display::PrintCoord(Coord coord)
+{
+    Display::Print("( ", true);
+    Display::Print(std::to_string(coord.X), true);
+    Display::Print(", ", true);
+    Display::Print(std::to_string(coord.Y), true);
+    Display::Print(" )", false);
+}
+
 void Display::DisplayBoard(Game* game)
 {
     boardOutput = std::string("\n\n\n    0  1  2  3  4  5  6  7 \n");
