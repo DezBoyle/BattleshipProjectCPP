@@ -8,24 +8,6 @@
 
 Game::Game()
 {
-    /*std::cout << "GAME START" << std::endl;
-    
-    Typing this out so I can try to understand it
-    
-    gameGrid - pointer to a pointer of ints
-        basically a reference to an array of pointers (more arrays)
-            ARRAYS ARE JUST POINTERS
-    gameGrid = new int*[8]
-        Creating a array of 8 int pointers (which are going to be arrays)
-    gameGrid[i] = new int[i]
-        Creating a new array of ints at the pointer
-            gameGrid = pointer.  Index this to get another pointer.
-            index that pointer to get a value
-
-    Im assuming when you index something with the [], its just skipping
-    through the memory at the size of the data type * index
-    */
-
    srand(time(NULL));
 
    gameGrid = new int*[GridSize];
