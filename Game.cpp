@@ -8,29 +8,12 @@
 
 Game::Game()
 {
-    /*std::cout << "GAME START" << std::endl;
-    
-    Typing this out so I can try to understand it
-    
-    gameGrid - pointer to a pointer of ints
-        basically a reference to an array of pointers (more arrays)
-            ARRAYS ARE JUST POINTERS
-    gameGrid = new int*[8]
-        Creating a array of 8 int pointers (which are going to be arrays)
-    gameGrid[i] = new int[i]
-        Creating a new array of ints at the pointer
-            gameGrid = pointer.  Index this to get another pointer.
-            index that pointer to get a value
-
-    Im assuming when you index something with the [], its just skipping
-    through the memory at the size of the data type * index
-    */
-
    srand(time(NULL));
 
    gameGrid = new int*[GridSize];
     for(int i = 0; i < 8; i++)
         gameGrid[i] = new int[GridSize];
+    coord = Coord(-1,-1); //a temporary coordinate I wanted to keep in the heap to reuse
 }
 
 Game::~Game()
@@ -40,8 +23,8 @@ Game::~Game()
 
 void Game::Restart()
 {
-    player = new Player(HitType::PLAYER);
-    enemy = new Player(HitType::ENEMY);
+    player = new Player(HitType::PLAYER, this);
+    enemy = new Player(HitType::ENEMY, this);
 
     std::cout << "RE/STARTING GAME" << std::endl;
     playerTurn = true;
@@ -52,35 +35,62 @@ void Game::Restart()
     {
         for(int y = 0; y < GridSize; y++)
         {
-            //gameGrid[x][y] = ((x + y) % 3) ? HitType::ENEMY : HitType::PLAYER;
-            gameGrid[x][y] = HitType::EMPTY;
+            //clear the grid
+            coord.X = x;
+            coord.Y = y;
+            SetGrid(coord, HitType::EMPTY);
         }
     }
 
     PlaceShips(player->GetPlayerType());
     PlaceShips(enemy->GetPlayerType());
     
-    //go between player and enemy here
+    Display::Clear();
+    Display::DisplayBoard(this);
 
+    //Game loop : go between player and enemy here
     while(true)
     {
-        Display::Clear();
-        Display::DisplayBoard(this);
-
+        if(!playerTurn)
+            ClearHitMarkers();
+        
+        //debug testing bit
         if(DEBUGXRAYHACKS)
             playerTurn = true;
 
+        //get input from the player / AI
         Coord coord = playerTurn ? player->InputCoordinates() : enemy->InputCoordinates();
-        std::string output = std::string("");
-
         Game::HitType result = ReadGrid(coord, playerTurn ? player->GetPlayerType() : enemy->GetPlayerType());
-        if(result == HitType::MISS)
-            output = std::string("\n------\nMiss.\n------");
-        if(result == HitType::NEARMISS)
-            output = std::string("\n------\nNear Miss.\n------");
-        if(result == HitType::PLAYER || result == HitType::ENEMY)
-            output = std::string("\n------\nHit!\n------");
-        Display::Print(output);
+
+        //we guessed but found an empty space
+        if(result == Game::HitType::MISS || result == Game::HitType::EMTPYGUESSED || result == Game::HitType::NEARMISS)
+            SetGrid(coord, Game::HitType::EMTPYGUESSED); //clear the slot so it makes it easier to see which ones you already guessed
+        else //HIT SOMETHING
+            SetGrid(coord, Game::HitType::HITMARKER); //draw a # symbol where a ship was just hit
+        Display::DisplayBoard(this);
+        
+        if(playerTurn)
+            Display::PrintHit(result); //show the player what they hit
+        else
+            enemy->SetHitResult(result);  //tell the AI what it hit
+
+        //count how many ships are left
+        player->ShipsLeft = CountShips(player->GetPlayerType());
+        enemy->ShipsLeft = CountShips(enemy->GetPlayerType());
+
+        //did we win or lose?
+        if(enemy->ShipsLeft <= 0)
+        {
+            Display::Clear();
+            Display::Print("~ YOU WIN ~");
+            break;
+        }
+        if(player->ShipsLeft <= 0)
+        {
+            Display::Clear();
+            Display::Print("~ YOU LOSE ~");
+            break;
+        }
 
         playerTurn = !playerTurn;
     }
@@ -93,52 +103,86 @@ void Game::PlaceShips(Game::HitType playerType)
     int shipsToPlace = ShipsPerPlayer;
     while(shipsToPlace > 0)
     {
-        int randX, randY;
-        randX = Utility::RandomRange(0, ShipsPerPlayer);
-        randY = Utility::RandomRange(0, ShipsPerPlayer);
+        coord.X = Utility::RandomRange(0, GridSize);
+        coord.Y = Utility::RandomRange(0, GridSize);
     
-        if(ReadGrid(Coord(randX, randY), Game::HitType::EMPTY))
+        if(ReadGrid(coord, Game::HitType::EMPTY))
         {
             shipsToPlace--;
-            gameGrid[randX][randY] = playerType;
+            SetGrid(coord, playerType);
         }
     }
 }
 
+int Game::CountShips(Game::HitType playerType)
+{
+    int count = 0;
+    for(int x = 0; x < GridSize; x++)
+    {
+        for(int y = 0; y < GridSize; y++)
+        {
+            coord.X = x;
+            coord.Y = y;
+
+            if(ReadGrid(coord, HitType::EMPTY) == playerType)
+                count++;
+        }
+    }
+    return count;
+}
+
+bool Game::InBounds(Coord coord)
+{
+    return (coord.X < GridSize && coord.X >= 0 && coord.Y < GridSize && coord.Y >= 0);
+}
+
+bool Game::ValidGuess(Coord coord)
+{
+    return InBounds(coord) && (ReadGrid(coord, Game::HitType::EMPTY) != Game::HitType::EMTPYGUESSED);
+}
+
+void Game::ClearHitMarkers()
+{
+    for(int x = 0; x < GridSize; x++)
+    {
+        for(int y = 0; y < GridSize; y++)
+        {
+            coord.X = x;
+            coord.Y = y;
+            if(ReadGrid(coord, Game::HitType::EMPTY) == Game::HitType::HITMARKER)
+                SetGrid(coord, HitType::EMTPYGUESSED);
+        }
+    }
+}
+
+void Game::SetGrid(Coord coord, Game::HitType typeToSet)
+{
+    gameGrid[coord.X][coord.Y] = typeToSet;
+}
+
 Game::HitType Game::ReadGrid(Coord coord, Game::HitType playerType)
 {
-    if(playerType == Game::HitType::EMPTY) //empty means its neither the player or the enemy
+    if(playerType == Game::HitType::EMPTY) //empty means it will simply return the value on the grid, not gameplay related
         return (Game::HitType)gameGrid[coord.X][coord.Y];
 
-    Game::HitType typeToLookFor = playerType == Game::HitType::PLAYER ? Game::HitType::ENEMY : Game::HitType::PLAYER;
+    Game::HitType typeToLookFor = (playerType == Game::HitType::PLAYER) ? Game::HitType::ENEMY : Game::HitType::PLAYER;
     Game::HitType hit = (Game::HitType)gameGrid[coord.X][coord.Y];
     if(hit == typeToLookFor) //hit the type we're looking for
-        return hit;
+        return typeToLookFor;
     
-    if(coord.X > 0) //check left
-    {
-        hit = (Game::HitType)gameGrid[coord.X - 1][coord.Y];
-        if(hit == typeToLookFor)
+    if(coord.X > 0)            //check left
+        if((Game::HitType)gameGrid[coord.X - 1][coord.Y] == typeToLookFor)
             return Game::HitType::NEARMISS;
-    }
     if(coord.X < GridSize - 1) //check right
-    {
-        hit = (Game::HitType)gameGrid[coord.X + 1][coord.Y];
-        if(hit == typeToLookFor)
+        if((Game::HitType)gameGrid[coord.X + 1][coord.Y] == typeToLookFor)
             return Game::HitType::NEARMISS;
-    }
-    if(coord.Y > 0) //check up
-    {
-        hit = (Game::HitType)gameGrid[coord.X][coord.Y - 1];
-        if(hit == typeToLookFor)
+    if(coord.Y > 0)            //check up
+        if((Game::HitType)gameGrid[coord.X][coord.Y - 1] == typeToLookFor)
             return Game::HitType::NEARMISS;
-    }
     if(coord.Y < GridSize - 1) //check down
-    {
-        hit = (Game::HitType)gameGrid[coord.X][coord.Y + 1];
-        if(hit == typeToLookFor)
+        if((Game::HitType)gameGrid[coord.X][coord.Y + 1] == typeToLookFor)
             return Game::HitType::NEARMISS;
-    }
+
     
     return Game::HitType::MISS;
 }
